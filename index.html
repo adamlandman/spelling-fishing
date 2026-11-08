@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Spelling Fishing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;font-family:'Fredoka',system-ui,sans-serif;background:#0b3d5c;color:#123}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:1000px;margin:0 auto;position:relative}
+/* top bar */
+#bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff8e7;border-bottom:3px solid #f2c14e}
+#bar .pill{background:#fff;border:2px solid #f2c14e;border-radius:999px;padding:3px 10px;font-weight:600;font-size:15px;white-space:nowrap}
+#bar .grow{flex:1}
+.iconbtn{border:none;background:#fff;border:2px solid #f2c14e;border-radius:12px;font-size:18px;padding:4px 9px;cursor:pointer;font-family:inherit}
+/* word panel */
+#panel{background:linear-gradient(#fff8e7,#ffefc7);padding:10px 12px 12px;text-align:center;border-bottom:4px solid #e0a82e}
+#controls{display:flex;justify-content:center;gap:8px;flex-wrap:nowrap;margin-bottom:10px}
+.btn{font-family:inherit;font-weight:600;font-size:17px;border:none;border-radius:14px;padding:9px 14px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.18);transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.btn.hear{background:#2a9d8f;color:#fff;font-size:20px;padding:10px 18px}
+.btn.soft{background:#fff;color:#264653;border:2px solid #e0c27a}
+#slots{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;min-height:58px}
+.slot{width:44px;height:54px;border-radius:10px;background:#fff;border:3px dashed #7fb7c9;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:700;color:#0b4f6c}
+.slot.next{border-color:#ff8c42;border-style:solid;animation:pulse 1.1s infinite}
+.slot.filled{border-style:solid;border-color:#2a9d8f;background:#e6fff9;animation:pop .35s}
+.slot.auto{border:none;background:transparent;width:18px}
+.slot.space{width:22px}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,140,66,.5)}50%{box-shadow:0 0 0 6px rgba(255,140,66,0)}}
+@keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+#msg{min-height:24px;margin-top:6px;font-size:18px;font-weight:600;color:#7a4b00}
+/* scene */
+#scene{flex:1;position:relative;overflow:hidden;background:linear-gradient(#bfe9ff 0,#e4f6ff 64px,#48b3d9 64px,#1f7fb0 45%,#0d4f7a 100%)}
+#sun{position:absolute;top:8px;right:22px;width:44px;height:44px;border-radius:50%;background:#ffd23f;box-shadow:0 0 0 8px rgba(255,210,63,.3)}
+.cloud{position:absolute;top:14px;height:18px;background:#fff;border-radius:20px;opacity:.9}
+.cloud::before,.cloud::after{content:'';position:absolute;background:#fff;border-radius:50%}
+.cloud::before{width:26px;height:26px;top:-12px;left:10px}.cloud::after{width:20px;height:20px;top:-8px;left:30px}
+#waves{position:absolute;left:0;right:0;top:54px;height:20px;pointer-events:none}
+#boat{position:absolute;top:18px;width:150px;height:60px;pointer-events:none;z-index:5}
+#lineSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6}
+#water{position:absolute;left:0;right:0;top:72px;bottom:0}
+.weed{position:absolute;bottom:-6px;width:14px;border-radius:14px 14px 0 0;background:#2d6a4f;transform-origin:bottom center;animation:sway 3s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+.bubble{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.55);animation:rise linear infinite}
+@keyframes rise{from{transform:translateY(0)}to{transform:translateY(-110vh)}}
+/* fish */
+.fish{position:absolute;left:0;top:0;width:118px;cursor:pointer;z-index:3;touch-action:manipulation}
+.fish svg{width:118px;height:68px;display:block;transition:transform .25s;filter:drop-shadow(0 3px 2px rgba(0,0,0,.2))}
+.fish.left svg{transform:scaleX(-1)}
+.fish .letter{position:absolute;top:8px;left:0;width:118px;text-align:center;font-size:36px;font-weight:700;color:#fff;line-height:52px;pointer-events:none;text-shadow:0 0 3px #0a2a3d,0 0 3px #0a2a3d,0 2px 0 #0a2a3d,0 -1px 0 #0a2a3d,2px 0 0 #0a2a3d,-2px 0 0 #0a2a3d}
+.fish .name{display:block;margin:-2px auto 0;width:max-content;max-width:140px;background:rgba(255,255,255,.92);border-radius:999px;padding:1px 8px;font-size:13px;font-weight:600;color:#0b3d5c;pointer-events:none}
+.fish .name b{color:#d1495b}
+.fish.glow svg{filter:drop-shadow(0 0 10px #fff176) drop-shadow(0 0 18px #ffeb3b)}
+.fish.shake svg{animation:shake .4s}
+@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg)}75%{transform:rotate(14deg)}}
+/* overlays */
+.overlay{position:absolute;inset:0;background:rgba(6,40,61,.72);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+.card{background:#fff8e7;border-radius:24px;padding:22px 22px 20px;max-width:420px;width:100%;text-align:center;box-shadow:0 10px 0 #e0a82e;border:4px solid #f2c14e;max-height:92%;overflow:auto}
+.card h1{margin:0 0 4px;font-size:34px;color:#0b4f6c}
+.card h2{margin:0 0 6px;font-size:26px;color:#0b4f6c}
+.card p{margin:6px 0;font-size:17px}
+.card label{display:block;text-align:left;font-weight:600;margin:12px 0 4px}
+.card select{width:100%;font-family:inherit;font-size:17px;padding:8px;border-radius:12px;border:2px solid #e0c27a;background:#fff}
+.btn.go{background:#ff8c42;color:#fff;font-size:22px;padding:12px 26px;margin-top:16px}
+.bigword{font-size:44px;font-weight:700;color:#2a9d8f;letter-spacing:2px;margin:4px 0}
+.stars{font-size:36px;letter-spacing:4px}
+.list{text-align:left;font-size:16px;margin:10px 0;max-height:200px;overflow:auto;background:#fff;border-radius:12px;padding:8px 12px}
+.list div{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f3e6c2}
+.hide{display:none!important}
+.defbox{margin:8px auto 0;max-width:560px;background:#fff;border:2px solid #9ad1d4;border-radius:12px;padding:6px 12px;font-size:17px;color:#164e63}
+.defbox i,.def i{color:#8a5a00;font-weight:600;margin-right:4px}
+.def{font-size:19px!important;color:#164e63;background:#fff;border-radius:12px;padding:8px 12px;margin:4px 0 8px!important}
+.btn:disabled{opacity:.6}
+.confetti{position:absolute;width:10px;height:14px;z-index:30;pointer-events:none;border-radius:2px}
+.small{font-size:14px;color:#7a5a1a}
+@media (max-width:520px){
+  .slot{width:34px;height:46px;font-size:28px}
+  .slot.auto{width:12px}
+  .btn{font-size:15px;padding:8px 10px}
+  #controls{gap:6px}
+  .lbl{display:none}
+  .btn.soft{display:flex;flex-direction:column;align-items:center;font-size:12px;padding:4px 8px;line-height:1.15}
+  .btn.soft .ic{font-size:19px}
+  .defbox{font-size:15px}
+  .btn.hear{font-size:18px;padding:9px 14px}
+  .fish,.fish svg,.fish .letter{width:96px}
+  .fish svg{height:56px}
+  .fish .letter{font-size:30px;line-height:42px;top:7px}
+  .fish .name{font-size:11.5px}
+  #bar .pill{font-size:13px;padding:2px 8px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <span class="pill" id="roundPill">Word 1/10</span>
+    <span class="pill" id="starPill">⭐ 0</span>
+    <span class="pill" id="bucketPill">🪣 0</span>
+    <span class="grow"></span>
+    <button class="iconbtn" id="soundBtn" title="Sound effects">🔔</button>
+    <button class="iconbtn" id="homeBtn" title="Menu">🏠</button>
+  </div>
+  <div id="panel">
+    <div id="controls">
+      <button class="btn hear" id="hearBtn">🔊 Hear<span class="lbl"> word</span></button>
+      <button class="btn soft" id="slowBtn"><span class="ic">🐢</span> Slow</button>
+      <button class="btn soft" id="defBtn"><span class="ic">📖</span> Meaning</button>
+      <button class="btn soft" id="hintBtn"><span class="ic">💡</span> Hint</button>
+      <button class="btn soft" id="peekBtn"><span class="ic">👀</span> Peek</button>
+    </div>
+    <div id="slots"></div>
+    <div id="defBox" class="defbox hide"></div>
+    <div id="msg">Tap a fish to catch the next letter!</div>
+  </div>
+  <div id="scene">
+    <div id="sun"></div>
+    <div class="cloud" style="left:8%;width:60px"></div>
+    <div class="cloud" style="left:58%;width:50px;top:24px"></div>
+    <svg id="waves" viewBox="0 0 400 20" preserveAspectRatio="none"><path d="M0 10 Q 25 0 50 10 T 100 10 T 150 10 T 200 10 T 250 10 T 300 10 T 350 10 T 400 10 V20 H0Z" fill="#48b3d9"/></svg>
+    <svg id="boat" viewBox="0 0 150 60">
+      <path d="M8 34 H122 L108 56 H24 Z" fill="#c8553d" stroke="#7a2e1f" stroke-width="2"/>
+      <rect x="8" y="30" width="114" height="6" rx="2" fill="#f4d35e"/>
+      <circle cx="58" cy="44" r="4" fill="#fff8e7"/><circle cx="76" cy="44" r="4" fill="#fff8e7"/>
+      <!-- rod -->
+      <line x1="96" y1="32" x2="146" y2="2" stroke="#6d4c41" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="102" cy="28" r="4" fill="#455a64"/>
+    </svg>
+    <svg id="lineSvg"><line id="fline" stroke="#263238" stroke-width="1.6"/><g id="hook"><path d="M0 0 V10 A5 5 0 1 1 -8 8" fill="none" stroke="#455a64" stroke-width="2.4" stroke-linecap="round"/></g></svg>
+    <div id="water"></div>
+  </div>
+
+  <!-- start screen -->
+  <div class="overlay" id="startScreen">
+    <div class="card">
+      <div style="font-size:52px">🎣</div>
+      <h1>Spelling Fishing</h1>
+      <p>Listen to the word, then catch the fish in the right order to spell it!</p>
+      <label for="setSel">Which words?</label>
+      <select id="setSel"></select>
+      <label for="countSel">Words per game</label>
+      <select id="countSel"><option>5</option><option selected>10</option><option>15</option><option>20</option></select>
+      <button class="btn go" id="startBtn" disabled>Loading sounds…</button>
+      <p class="small" id="startInfo"></p>
+      <p class="small">🔊 Turn the volume up. On iPhone/iPad, also flip off the silent switch.</p>
+    </div>
+  </div>
+
+  <!-- word done -->
+  <div class="overlay hide" id="doneScreen">
+    <div class="card">
+      <h2 id="doneTitle">You caught it!</h2>
+      <div class="bigword" id="doneWord"></div>
+      <p class="def" id="doneDef"></p>
+      <div class="stars" id="doneStars"></div>
+      <button class="btn go" id="nextBtn">Next word ➜</button>
+    </div>
+  </div>
+
+  <!-- round done -->
+  <div class="overlay hide" id="endScreen">
+    <div class="card">
+      <div style="font-size:48px">🏆</div>
+      <h2>Great fishing!</h2>
+      <div class="stars" id="endStars"></div>
+      <p id="endText"></p>
+      <div class="list" id="endList"></div>
+      <button class="btn go" id="againBtn">Play again</button>
+      <p><button class="btn soft" id="menuBtn" style="margin-top:8px">Choose different words</button></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const WORDS = ["a", "around", "bring", "day", "able", "as", "brought", "deep", "about", "asked", "build", "did", "above", "at", "built", "didn't", "across", "away", "but", "different", "add", "back", "by", "distance", "after", "ball", "called", "do", "again", "be", "came", "does", "against", "beautiful", "can", "dog", "ago", "became", "can't", "don't", "air", "because", "cannot", "done", "all", "become", "car", "door", "almost", "been", "care", "down", "alone", "before", "carefully", "draw", "along", "began", "carry", "dry", "already", "begin", "center", "during", "also", "behind", "certain", "each", "although", "being", "change", "early", "always", "below", "check", "earth", "am", "best", "children", "easy", "American", "better", "city", "eat", "among", "between", "class", "either", "an", "big", "close", "else", "and", "black", "cold", "end", "animal", "blue", "come", "English", "animals", "boat", "common", "enough", "another", "body", "complete", "even", "answer", "book", "could", "ever", "any", "both", "country", "every", "anything", "bottom", "course", "everyone", "are", "box", "cut", "everything", "area", "boy", "dark", "example", "face", "give", "home", "later", "fact", "glass", "horse", "lay", "fall", "go", "hot", "learn", "family", "going", "hour", "learned", "far", "gold", "house", "least", "fast", "gone", "how", "leave", "father", "good", "however", "leaves", "feel", "got", "hundred", "left", "feet", "great", "I", "less", "felt", "green", "I'll", "let", "few", "ground", "I'm", "letter", "field", "group", "ice", "life", "finally", "grow", "idea", "light", "find", "had", "if", "like", "fine", "half", "important", "line", "fire", "hand", "in", "list", "first", "happened", "inside", "little", "fish", "hard", "instead", "live", "five", "has", "into", "lived", "floor", "have", "is", "living", "follow", "he", "it", "long", "food", "head", "it's", "longer", "foot", "hear", "its", "look", "for", "heard", "itself", "low", "form", "heart", "job", "made", "found", "heavy", "just", "main", "four", "held", "keep", "make", "friend", "help", "kept", "man", "from", "her", "kind", "many", "front", "here", "knew", "map", "full", "high", "know", "matter", "game", "him", "land", "may", "gave", "himself", "language", "me", "get", "his", "large", "mean", "girl", "hold", "last", "men", "might", "open", "real", "since", "mind", "or", "really", "six", "miss", "order", "red", "size", "money", "other", "remember", "sky", "moon", "our", "rest", "small", "more", "out", "right", "snow", "morning", "outside", "river", "so", "most", "over", "road", "some", "mother", "own", "rock", "someone", "move", "page", "room", "something", "much", "paper", "round", "soon", "must", "part", "run", "sound", "my", "past", "sad", "space", "name", "pattern", "said", "special", "near", "people", "same", "stand", "need", "perhaps", "sat", "start", "never", "person", "picture", "saw", "state", "new", "piece", "say", "stay", "next", "place", "school", "still", "night", "plants", "sea", "stood", "no", "play", "second", "stop", "not", "point", "see", "story", "nothing", "poor", "seen", "strong", "notice", "possible", "sentence", "study", "now", "power", "set", "such", "number", "probably", "several", "suddenly", "of", "problem", "she", "summer", "off", "put", "shell", "sun", "often", "question", "ship", "sure", "oh", "quite", "short", "surface", "old", "rain", "should", "system", "on", "ran", "show", "table", "once", "read", "shown", "take", "one", "reading", "side", "talk", "only", "ready", "simple", "tall", "tell", "try", "whole", "ten", "turn", "why", "than", "turned", "wide", "that", "two", "wild", "that's", "under", "will", "the", "understand", "wind", "their", "United States", "winter", "them", "until", "with", "themselves", "up", "within", "then", "upon", "without", "there", "us", "words", "these", "use", "work", "they", "usually", "world", "thing", "very", "would", "think", "voice", "write", "third", "walked", "year", "this", "want", "yes", "those", "warm", "yet", "though", "was", "you", "thought", "watch", "young", "three", "water", "through", "way", "time", "we", "tiny", "weather", "to", "well", "today", "went", "together", "were", "told", "what", "too", "when", "took", "where", "top", "whether", "toward", "which", "town", "while", "tree", "white", "true", "who"];
+
+/* ---------- real fish for every letter ---------- */
+const FISH = {
+ a:[["Angelfish","#ffd23f","#f4a259","round"],["Anchovy","#9fb8c8","#5d7f99","long"]],
+ b:[["Barracuda","#8fa3b3","#4a5d6e","long"],["Bass","#6a994e","#386641","normal"]],
+ c:[["Clownfish","#ff7b2e","#ffffff","normal","stripes"],["Catfish","#a68a64","#6f5b3e","normal"]],
+ d:[["Damselfish","#3a86ff","#ffd60a","normal"],["Dogfish","#7d8597","#4a4e69","shark"]],
+ e:[["Eel","#5c8a3a","#2f4f1f","long"],["Electric ray","#c9a66b","#8a6d3b","round"]],
+ f:[["Flounder","#c2a878","#8b7349","round"],["Flying fish","#4cc9f0","#4361ee","normal"]],
+ g:[["Goldfish","#ff9f1c","#e85d04","normal"],["Grouper","#8d6e63","#5d4037","normal"]],
+ h:[["Halibut","#b08968","#7f5539","round"],["Herring","#adb5bd","#495057","normal"]],
+ i:[["Icefish","#90e0ef","#0096c7","long"],["Indian glassfish","#d0e8f2","#7fb3c8","normal"]],
+ j:[["John Dory","#d4a373","#a47148","round"],["Jack","#5e8bad","#2c5d80","normal"]],
+ k:[["Koi","#ff6b35","#ffffff","normal","spots"],["Kingfish","#577590","#2b4157","normal"]],
+ l:[["Lionfish","#e63946","#ffe5d9","normal","stripes"],["Lingcod","#6c757d","#3d4349","long"]],
+ m:[["Mackerel","#4a7c96","#1d3e53","normal","stripes"],["Marlin","#264653","#2a9d8f","long"]],
+ n:[["Needlefish","#8ecae6","#219ebc","long"],["Nurse shark","#a5a58d","#6b705c","shark"]],
+ o:[["Oarfish","#c0c7cc","#e63946","long"],["Opah","#e76f51","#f4a261","round","spots"]],
+ p:[["Pufferfish","#e9c46a","#a98a2b","round","spots"],["Pike","#588157","#344e41","long"]],
+ q:[["Queen triggerfish","#2a9d8f","#e9c46a","normal"],["Queenfish","#94a3b8","#475569","normal"]],
+ r:[["Rainbow trout","#f08080","#6a994e","normal","spots"],["Redfish","#d62828","#9d0208","normal"]],
+ s:[["Sturgeon","#6b705c","#3f4238","long"],["Salmon","#fa8072","#c75146","normal"]],
+ t:[["Tuna","#1d3557","#a8dadc","normal"],["Trout","#90a955","#4f772d","normal","spots"]],
+ u:[["Unicornfish","#7b8cde","#3c4a9e","normal"],["Upside-down catfish","#9c8466","#5e4b34","normal"]],
+ v:[["Viperfish","#3d405b","#81b29a","long"],["Vermilion snapper","#e5383b","#a4161a","normal"]],
+ w:[["Walleye","#b5a642","#6b6123","normal"],["Wahoo","#3a6ea5","#c0d6df","long","stripes"]],
+ x:[["X-ray tetra","#cdb4db","#7b2cbf","normal"]],
+ y:[["Yellowtail","#ffd166","#e09f3e","normal"],["Yellowfin tuna","#3d5a80","#ffd166","normal"]],
+ z:[["Zebrafish","#bde0fe","#1d3557","long","stripes"],["Zander","#8a9a5b","#4b5320","long"]]
+};
+
+/* homophones & tricky words: say a helper phrase so she knows which one */
+const SAY = {
+ "a":"a, as in, a dog","an":"an, as in, an apple","to":"to, as in, I am going to school","too":"too, as in, me too","two":"two, the number two",
+ "there":"there, as in, over there","their":"their, as in, it is their dog","here":"here, as in, come here","hear":"hear, as in, I hear music",
+ "knew":"knew, as in, I knew the answer","new":"new, as in, a new book","know":"know, as in, I know the answer","no":"no, the opposite of yes",
+ "right":"right, the opposite of left","write":"write, as in, write a letter","read":"read, as in, I like to read books","red":"red, the color red",
+ "sea":"sea, as in, the ocean","see":"see, as in, I see you","its":"its, as in, the dog wagged its tail","it's":"it's, short for, it is",
+ "would":"would, as in, I would like that","our":"our, as in, our house","hour":"hour, as in, sixty minutes","by":"by, as in, stand by me",
+ "one":"one, the number one","which":"which, as in, which one do you want","whole":"whole, as in, the whole pizza",
+ "weather":"weather, as in, sunny weather","whether":"whether, as in, whether or not","piece":"piece, as in, a piece of cake",
+ "made":"made, as in, I made a cake","sun":"sun, the sun in the sky","for":"for, as in, this is for you","four":"four, the number four",
+ "so":"so, as in, I am so happy","I":"I, as in, I am happy","than":"than, as in, bigger than","then":"then, as in, and then",
+ "where":"where, as in, where are you","were":"were, as in, we were there","close":"close, as in, close the door","live":"live, as in, where do you live",
+ "past":"past, as in, the past","wind":"wind, as in, the wind blows","heard":"heard, as in, I heard a sound","road":"road, as in, a long road",
+ "some":"some, as in, some cookies","night":"night, as in, day and night","main":"main, as in, the main idea","way":"way, as in, this way",
+ "didn't":"didn't, short for, did not","can't":"can't, short for, can not","don't":"don't, short for, do not","I'll":"I'll, short for, I will",
+ "I'm":"I'm, short for, I am","that's":"that's, short for, that is","lay":"lay, as in, lay it down","led":"led","oh":"oh, as in, oh no!",
+ "rest":"rest, as in, take a rest","tear":"tear","whole":"whole, as in, the whole thing","sat":"sat, as in, I sat down","set":"set, as in, set the table",
+ "leaves":"leaves, as in, leaves on a tree","lead":"lead","week":"week","plants":"plants, as in, plants need water","rock":"rock, as in, a big rock"
+};
+
+/* ---------- state ---------- */
+let pool=[], roundWords=[], roundIdx=0, word="", pos=0, letterMiss=0, wordMiss=0, hints=0;
+let totalStars=0, roundResults=[], busy=false, sfxOn=true;
+let fishes=[], nextId=1;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let bucket=store.get("sf_bucket",0), tricky=store.get("sf_tricky",[]);
+
+const $=id=>document.getElementById(id);
+const water=$("water"), scene=$("scene");
+
+/* ---------- word sets ---------- */
+const SETS=[["all","All 499 words (mixed)"]];
+const groups=[["a","A words"],["b","B words"],["c","C words"],["d","D words"],["ef","E–F words"],["gh","G–H words"],["ijkl","I–L words"],["mn","M–N words"],["op","O–P words"],["qr","Q–R words"],["s","S words"],["t","T words"],["uvwxyz","U–Z words"]];
+function buildSetMenu(){
+  const sel=$("setSel"), cur=sel.value; sel.innerHTML="";
+  const opts=[...SETS];
+  if(tricky.length) opts.push(["tricky",`⭐ My tricky words (${tricky.length})`]);
+  opts.push(["short","Short words (2–4 letters)"],["long","Long words (7+ letters)"]);
+  groups.forEach(g=>opts.push(["g:"+g[0],g[1]]));
+  opts.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;sel.appendChild(o)});
+  if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  $("startInfo").textContent = bucket?`Fish in your bucket so far: ${bucket} 🐟`:"Tip: turn your volume up!";
+}
+function wordsFor(set){
+  const letters=w=>w.replace(/[^A-Za-z]/g,"");
+  if(set==="tricky") return [...tricky];
+  if(set==="short") return WORDS.filter(w=>{const l=letters(w).length;return l>=2&&l<=4});
+  if(set==="long") return WORDS.filter(w=>letters(w).length>=7);
+  if(set.startsWith("g:")){const s=set.slice(2);return WORDS.filter(w=>s.includes(w[0].toLowerCase()))}
+  return WORDS.filter(w=>letters(w).length>=2);
+}
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+
+/* ---------- voice (recorded clips, played with Web Audio) ---------- */
+let CLIPS={};
+const DEFS={"a": ["article", "one; any single thing, as in a dog"], "able": ["adjective", "having the skill or power to do something"], "about": ["preposition", "on the subject of; also, close to"], "above": ["preposition", "higher than; over"], "across": ["preposition", "from one side to the other"], "add": ["verb", "to put things together to make more"], "after": ["preposition", "later than; following"], "again": ["adverb", "one more time"], "against": ["preposition", "touching or leaning on; or on the other side"], "ago": ["adverb", "in the past; before now"], "air": ["noun", "the mix of gases we breathe"], "all": ["adjective", "every one; the whole amount"], "almost": ["adverb", "nearly, but not quite"], "alone": ["adjective", "by yourself, with no one else"], "along": ["preposition", "moving forward beside something, like along the road"], "already": ["adverb", "before now or before then"], "also": ["adverb", "in addition; too"], "although": ["conjunction", "even though"], "always": ["adverb", "at all times; every time"], "am": ["verb", "a form of be, used with I, as in I am happy"], "American": ["adjective", "from or about the United States of America"], "among": ["preposition", "in the middle of a group"], "an": ["article", "one; used before a vowel sound, as in an apple"], "and": ["conjunction", "plus; also; used to join words"], "animal": ["noun", "a living thing that can move on its own"], "animals": ["noun", "living things that can move on their own"], "another": ["adjective", "one more; a different one"], "answer": ["noun", "a reply to a question"], "any": ["adjective", "one or some, no matter which"], "anything": ["pronoun", "any thing at all"], "are": ["verb", "a form of be, as in we are friends"], "area": ["noun", "a part of a place or a space"], "around": ["preposition", "on every side of; or in a circle"], "as": ["conjunction", "in the same way; equally, as tall as"], "asked": ["verb", "said a question to get an answer"], "at": ["preposition", "in or near a place or time, as in at school"], "away": ["adverb", "to another place; not here"], "back": ["noun", "the rear part of something"], "ball": ["noun", "a round object used in games"], "be": ["verb", "to exist or to happen"], "beautiful": ["adjective", "very pretty or pleasing"], "became": ["verb", "started to be; past of become"], "because": ["conjunction", "for the reason that"], "become": ["verb", "to start to be something"], "been": ["verb", "a form of be, as in I have been there"], "before": ["preposition", "earlier than"], "began": ["verb", "started; past of begin"], "begin": ["verb", "to start"], "behind": ["preposition", "at the back of"], "being": ["noun", "a living thing; or the state of existing"], "below": ["preposition", "lower than; under"], "best": ["adjective", "better than all others"], "better": ["adjective", "more good than something else"], "between": ["preposition", "in the space that separates two things"], "big": ["adjective", "large in size"], "black": ["adjective", "the darkest color, like the night sky"], "blue": ["adjective", "the color of a clear sky"], "boat": ["noun", "a small vessel for travel on water"], "body": ["noun", "the whole physical form of a person or animal"], "book": ["noun", "written pages bound together to read"], "both": ["adjective", "the two together"], "bottom": ["noun", "the lowest part of something"], "box": ["noun", "a container, usually with four sides and a lid"], "boy": ["noun", "a young male person"], "bring": ["verb", "to take something or someone with you"], "brought": ["verb", "took something with you; past of bring"], "build": ["verb", "to make something by putting parts together"], "built": ["verb", "made by putting parts together; past of build"], "but": ["conjunction", "used to show something different, like small but strong"], "by": ["preposition", "near or beside; or done through someone"], "called": ["verb", "gave a name to; or phoned"], "came": ["verb", "moved toward; past of come"], "can": ["verb", "to be able to"], "can't": ["contraction", "short for can not; not able to"], "cannot": ["verb", "is not able to"], "car": ["noun", "a motor vehicle with four wheels"], "care": ["verb", "to feel concern or interest"], "carefully": ["adverb", "paying close attention so nothing goes wrong"], "carry": ["verb", "to hold something while moving it"], "center": ["noun", "the middle of something"], "certain": ["adjective", "sure; having no doubt"], "change": ["verb", "to make or become different"], "check": ["verb", "to look closely to make sure something is right"], "children": ["noun", "young boys and girls"], "city": ["noun", "a large town where many people live"], "class": ["noun", "a group of students who learn together"], "close": ["verb", "to shut"], "cold": ["adjective", "having a low temperature; not warm"], "come": ["verb", "to move toward someone or something"], "common": ["adjective", "happening often; ordinary"], "complete": ["adjective", "having every part; finished"], "could": ["verb", "was able to; past of can"], "country": ["noun", "a land with its own government"], "course": ["noun", "a path or route; or a set of lessons"], "cut": ["verb", "to divide or open with something sharp"], "dark": ["adjective", "having little or no light"], "day": ["noun", "the time from sunrise to sunset; or 24 hours"], "deep": ["adjective", "going far down from the top"], "did": ["verb", "carried out an action; past of do"], "didn't": ["contraction", "short for did not"], "different": ["adjective", "not the same"], "distance": ["noun", "the amount of space between two places"], "do": ["verb", "to carry out an action"], "does": ["verb", "a form of do, as in she does her work"], "dog": ["noun", "a furry animal that people keep as a pet"], "don't": ["contraction", "short for do not"], "done": ["adjective", "finished"], "door": ["noun", "a barrier that opens and closes the way into a room"], "down": ["adverb", "from higher to lower"], "draw": ["verb", "to make a picture with a pencil or pen"], "dry": ["adjective", "not wet; free from water"], "during": ["preposition", "all through a period of time"], "each": ["adjective", "every one of a group, one at a time"], "early": ["adjective", "near the beginning; before the usual time"], "earth": ["noun", "the planet we live on; also soil"], "easy": ["adjective", "not hard to do"], "eat": ["verb", "to take in food"], "either": ["conjunction", "one or the other of two"], "else": ["adverb", "other; different, as in someone else"], "end": ["noun", "the last part of something"], "English": ["noun", "the language spoken in England, the United States, and many places"], "enough": ["adjective", "as much as is needed"], "even": ["adverb", "used to show something is surprising"], "ever": ["adverb", "at any time"], "every": ["adjective", "each and all of a group"], "everyone": ["pronoun", "every person"], "everything": ["pronoun", "all things"], "example": ["noun", "one thing that shows what others are like"], "face": ["noun", "the front of the head, from forehead to chin"], "fact": ["noun", "something that is true"], "fall": ["verb", "to drop down"], "family": ["noun", "parents, children, and relatives"], "far": ["adverb", "a long way off"], "fast": ["adjective", "moving quickly"], "father": ["noun", "a male parent; dad"], "feel": ["verb", "to touch; or to have an emotion"], "feet": ["noun", "more than one foot; the parts at the end of your legs"], "felt": ["verb", "touched or sensed; past of feel"], "few": ["adjective", "a small number of"], "field": ["noun", "an open piece of land, often with grass"], "finally": ["adverb", "at last, after a long time"], "find": ["verb", "to discover or come upon something"], "fine": ["adjective", "okay; good enough"], "fire": ["noun", "the heat, flames, and light of something burning"], "first": ["adjective", "coming before all others"], "fish": ["noun", "an animal that lives in water and breathes through gills"], "five": ["noun", "the number after four"], "floor": ["noun", "the surface you walk on inside a room"], "follow": ["verb", "to go after or behind"], "food": ["noun", "what people and animals eat to live and grow"], "foot": ["noun", "the part of the leg below the ankle"], "for": ["preposition", "meant to belong to or help, as in this is for you"], "form": ["noun", "a shape; or a paper with blanks to fill in"], "found": ["verb", "discovered; past of find"], "four": ["noun", "the number after three"], "friend": ["noun", "a person you like and trust"], "from": ["preposition", "starting at a place or time"], "front": ["noun", "the part that faces forward"], "full": ["adjective", "holding as much as it can"], "game": ["noun", "an activity with rules that you play for fun"], "gave": ["verb", "handed something over; past of give"], "get": ["verb", "to receive or come to have"], "girl": ["noun", "a young female person"], "give": ["verb", "to hand something to someone"], "glass": ["noun", "a hard, clear material used for windows; or a cup made of it"], "go": ["verb", "to move from one place to another"], "going": ["verb", "moving from one place to another"], "gold": ["noun", "a shiny yellow metal that is worth a lot"], "gone": ["adjective", "no longer here"], "good": ["adjective", "nice, helpful, or well done"], "got": ["verb", "received; past of get"], "great": ["adjective", "very good; or very big"], "green": ["adjective", "the color of grass"], "ground": ["noun", "the solid surface of the earth"], "group": ["noun", "a number of people or things together"], "grow": ["verb", "to get bigger"], "had": ["verb", "owned or held; past of have"], "half": ["noun", "one of two equal parts"], "hand": ["noun", "the part at the end of your arm with fingers"], "happened": ["verb", "took place"], "hard": ["adjective", "firm and solid; or not easy"], "has": ["verb", "owns or holds, as in she has a cat"], "have": ["verb", "to own or hold"], "he": ["pronoun", "a boy, man, or male animal already talked about"], "head": ["noun", "the top part of the body, with the eyes and brain"], "hear": ["verb", "to take in sounds with your ears"], "heard": ["verb", "took in sounds with your ears; past of hear"], "heart": ["noun", "the organ that pumps blood through the body"], "heavy": ["adjective", "weighing a lot; hard to lift"], "held": ["verb", "kept in your hands or arms; past of hold"], "help": ["verb", "to make things easier for someone"], "her": ["pronoun", "a girl, woman, or female animal already talked about"], "here": ["adverb", "in or at this place"], "high": ["adjective", "far up from the ground"], "him": ["pronoun", "a boy, man, or male animal already talked about"], "himself": ["pronoun", "that same boy or man"], "his": ["pronoun", "belonging to him"], "hold": ["verb", "to keep something in your hands or arms"], "home": ["noun", "the place where you live"], "horse": ["noun", "a large animal with hooves that people ride"], "hot": ["adjective", "having a high temperature; very warm"], "hour": ["noun", "sixty minutes"], "house": ["noun", "a building where people live"], "how": ["adverb", "in what way"], "however": ["adverb", "but; even so"], "hundred": ["noun", "the number 100; ten tens"], "I": ["pronoun", "the person speaking; me"], "I'll": ["contraction", "short for I will"], "I'm": ["contraction", "short for I am"], "ice": ["noun", "frozen water"], "idea": ["noun", "a thought or plan"], "if": ["conjunction", "in case; on the condition that"], "important": ["adjective", "mattering a lot"], "in": ["preposition", "inside something"], "inside": ["adverb", "in the inner part; indoors"], "instead": ["adverb", "in place of something else"], "into": ["preposition", "to the inside of"], "is": ["verb", "a form of be, as in it is sunny"], "it": ["pronoun", "a thing already talked about"], "it's": ["contraction", "short for it is"], "its": ["pronoun", "belonging to it"], "itself": ["pronoun", "that same thing"], "job": ["noun", "work that someone does to earn money"], "just": ["adverb", "only; or a very short time ago"], "keep": ["verb", "to hold on to; to have and not give away"], "kept": ["verb", "held on to; past of keep"], "kind": ["adjective", "nice, gentle, and caring"], "knew": ["verb", "understood or was sure of; past of know"], "know": ["verb", "to understand or be sure of"], "land": ["noun", "the solid ground of the earth"], "language": ["noun", "the words people use to speak and write"], "large": ["adjective", "big in size"], "last": ["adjective", "coming at the end"], "later": ["adverb", "after some time"], "lay": ["verb", "to put something down"], "learn": ["verb", "to gain knowledge or a skill"], "learned": ["verb", "gained knowledge or a skill"], "least": ["adjective", "the smallest amount"], "leave": ["verb", "to go away from a place"], "leaves": ["noun", "the flat green parts of a plant or tree"], "left": ["noun", "the side opposite of right"], "less": ["adjective", "a smaller amount"], "let": ["verb", "to allow"], "letter": ["noun", "a symbol in the alphabet; or a written message"], "life": ["noun", "being alive; how someone lives"], "light": ["noun", "what lets us see, like sunshine or a lamp"], "like": ["verb", "to enjoy or be fond of"], "line": ["noun", "a long thin mark; or people standing one behind another"], "list": ["noun", "a set of names or items written one after another"], "little": ["adjective", "small in size or amount"], "live": ["verb", "to be alive; or to have your home somewhere"], "lived": ["verb", "was alive; or had a home somewhere"], "living": ["adjective", "alive"], "long": ["adjective", "great in length from one end to the other"], "longer": ["adjective", "more long"], "look": ["verb", "to use your eyes to see"], "low": ["adjective", "close to the ground; not high"], "made": ["verb", "built or created; past of make"], "main": ["adjective", "most important"], "make": ["verb", "to build or create"], "man": ["noun", "an adult male person"], "many": ["adjective", "a large number of"], "map": ["noun", "a drawing that shows where places are"], "matter": ["noun", "anything that takes up space; or a subject or problem"], "may": ["verb", "might; or to be allowed to"], "me": ["pronoun", "the person speaking, as in give it to me"], "mean": ["verb", "to have a meaning; or to intend"], "men": ["noun", "more than one man"], "might": ["verb", "may possibly"], "mind": ["noun", "the part of you that thinks and feels"], "miss": ["verb", "to fail to hit or catch; or to feel sad someone is gone"], "money": ["noun", "coins and bills used to buy things"], "moon": ["noun", "the natural object that circles the Earth and shines at night"], "more": ["adjective", "a greater amount"], "morning": ["noun", "the time between sunrise and noon"], "most": ["adjective", "the greatest amount"], "mother": ["noun", "a female parent; mom"], "move": ["verb", "to change place or position"], "much": ["adjective", "a large amount"], "must": ["verb", "to have to"], "my": ["pronoun", "belonging to me"], "name": ["noun", "the word that a person or thing is called"], "near": ["adjective", "close by; not far"], "need": ["verb", "to have to have something"], "never": ["adverb", "not ever; at no time"], "new": ["adjective", "just made or not used before"], "next": ["adjective", "coming right after"], "night": ["noun", "the time between sunset and sunrise when it is dark"], "no": ["adverb", "the opposite of yes"], "not": ["adverb", "a word that makes something negative"], "nothing": ["pronoun", "not anything"], "notice": ["verb", "to see or become aware of something"], "now": ["adverb", "at this moment"], "number": ["noun", "a word or symbol that tells how many"], "of": ["preposition", "belonging to or part of, as in a cup of milk"], "off": ["adverb", "away from; not on"], "often": ["adverb", "many times"], "oh": ["interjection", "a word that shows surprise or feeling"], "old": ["adjective", "having lived or existed for a long time"], "on": ["preposition", "resting on top of; touching the surface of"], "once": ["adverb", "one time"], "one": ["noun", "the number 1; a single thing"], "only": ["adverb", "just; no more than"], "open": ["verb", "to move something so it is no longer shut"], "or": ["conjunction", "used between choices, as in red or blue"], "order": ["noun", "the way things are arranged; or a command"], "other": ["adjective", "different; not the same one"], "our": ["pronoun", "belonging to us"], "out": ["adverb", "away from the inside"], "outside": ["adverb", "not inside; outdoors"], "over": ["preposition", "above; or across"], "own": ["verb", "to have something that belongs to you"], "page": ["noun", "one side of a sheet of paper in a book"], "paper": ["noun", "thin material used for writing, drawing, and printing"], "part": ["noun", "a piece of something"], "past": ["noun", "the time that has already happened"], "pattern": ["noun", "a design or set of things that repeats"], "people": ["noun", "men, women, and children"], "perhaps": ["adverb", "maybe"], "person": ["noun", "a human being"], "picture": ["noun", "a drawing, painting, or photo"], "piece": ["noun", "a part of something"], "place": ["noun", "a particular spot or area"], "plants": ["noun", "living things that grow in the ground, like trees and flowers"], "play": ["verb", "to do things for fun, like games or sports"], "point": ["noun", "a sharp end; or a dot"], "poor": ["adjective", "having very little money"], "possible": ["adjective", "able to happen or be done"], "power": ["noun", "strength or the ability to do things"], "probably": ["adverb", "very likely"], "problem": ["noun", "something difficult that needs to be solved"], "put": ["verb", "to place something somewhere"], "question": ["noun", "something you ask to get an answer"], "quite": ["adverb", "very; or completely"], "rain": ["noun", "water that falls in drops from clouds"], "ran": ["verb", "moved fast on your feet; past of run"], "read": ["verb", "to look at written words and understand them"], "reading": ["noun", "looking at written words and understanding them"], "ready": ["adjective", "prepared to do something"], "real": ["adjective", "true; not fake or made up"], "really": ["adverb", "truly; very"], "red": ["adjective", "the color of a strawberry or a fire truck"], "remember": ["verb", "to bring back to mind; not forget"], "rest": ["noun", "a break to relax; or what is left"], "right": ["noun", "the side opposite of left"], "river": ["noun", "a large stream of water that flows across land"], "road": ["noun", "a way for cars and people to travel on"], "rock": ["noun", "a hard piece of stone"], "room": ["noun", "a space in a building with walls, a floor, and a ceiling"], "round": ["adjective", "shaped like a circle or a ball"], "run": ["verb", "to move fast on your feet"], "sad": ["adjective", "unhappy"], "said": ["verb", "spoke words; past of say"], "same": ["adjective", "exactly alike; not different"], "sat": ["verb", "rested on a seat; past of sit"], "saw": ["verb", "looked at with your eyes; past of see"], "say": ["verb", "to speak words"], "school": ["noun", "a place where children go to learn"], "sea": ["noun", "a large body of salt water"], "second": ["adjective", "next after the first"], "see": ["verb", "to look at with your eyes"], "seen": ["verb", "looked at with your eyes, as in I have seen it"], "sentence": ["noun", "a group of words that tells a complete thought"], "set": ["verb", "to put something in a place"], "several": ["adjective", "more than two, but not many"], "she": ["pronoun", "a girl, woman, or female animal already talked about"], "shell": ["noun", "a hard outer covering, like on a turtle or a snail"], "ship": ["noun", "a large boat that travels on the sea"], "short": ["adjective", "not long or not tall"], "should": ["verb", "ought to"], "show": ["verb", "to let someone see something"], "shown": ["verb", "let someone see something, as in I was shown the way"], "side": ["noun", "the left or right part of something; or an edge"], "simple": ["adjective", "easy to understand or do"], "since": ["preposition", "from a time in the past until now"], "six": ["noun", "the number after five"], "size": ["noun", "how big or small something is"], "sky": ["noun", "the space above the earth where you see clouds and the sun"], "small": ["adjective", "little in size"], "snow": ["noun", "frozen white flakes that fall from clouds"], "so": ["adverb", "very, as in I am so happy"], "some": ["adjective", "a number or amount of something, but not all"], "someone": ["pronoun", "some person"], "something": ["pronoun", "some thing"], "soon": ["adverb", "in a short time"], "sound": ["noun", "something you hear"], "space": ["noun", "an open or empty area; or the area beyond Earth"], "special": ["adjective", "different from others in a good way"], "stand": ["verb", "to be on your feet"], "start": ["verb", "to begin"], "state": ["noun", "one of the fifty parts of the United States"], "stay": ["verb", "to remain in a place"], "still": ["adjective", "not moving"], "stood": ["verb", "was on your feet; past of stand"], "stop": ["verb", "to come to a halt; to end"], "story": ["noun", "a telling of something that happened, real or made up"], "strong": ["adjective", "having a lot of power or strength"], "study": ["verb", "to learn about something by reading and practicing"], "such": ["adjective", "of this kind; so much"], "suddenly": ["adverb", "quickly and with no warning"], "summer": ["noun", "the warmest season of the year"], "sun": ["noun", "the star that gives Earth light and heat"], "sure": ["adjective", "having no doubt; certain"], "surface": ["noun", "the outside or top layer of something"], "system": ["noun", "a group of parts that work together"], "table": ["noun", "a piece of furniture with a flat top and legs"], "take": ["verb", "to grab or carry something"], "talk": ["verb", "to speak with someone"], "tall": ["adjective", "high from bottom to top"], "tell": ["verb", "to say something to someone"], "ten": ["noun", "the number after nine"], "than": ["conjunction", "used to compare, as in bigger than"], "that": ["pronoun", "the one over there; the one already talked about"], "that's": ["contraction", "short for that is"], "the": ["article", "a word used before a specific thing, as in the dog"], "their": ["pronoun", "belonging to them"], "them": ["pronoun", "those people or things already talked about"], "themselves": ["pronoun", "those same people"], "then": ["adverb", "at that time; next"], "there": ["adverb", "in or at that place"], "these": ["pronoun", "the ones here"], "they": ["pronoun", "those people or things already talked about"], "thing": ["noun", "an object or idea"], "think": ["verb", "to use your mind"], "third": ["adjective", "next after the second"], "this": ["pronoun", "the one here"], "those": ["pronoun", "the ones over there"], "though": ["conjunction", "even if; although"], "thought": ["noun", "an idea in your mind"], "three": ["noun", "the number after two"], "through": ["preposition", "in one side and out the other"], "time": ["noun", "what clocks measure, in seconds, minutes, and hours"], "tiny": ["adjective", "very small"], "to": ["preposition", "toward a place, as in I am going to school"], "today": ["noun", "this day"], "together": ["adverb", "with each other"], "told": ["verb", "said something to someone; past of tell"], "too": ["adverb", "also; or more than is wanted"], "took": ["verb", "grabbed or carried; past of take"], "top": ["noun", "the highest part of something"], "toward": ["preposition", "in the direction of"], "town": ["noun", "a place where people live that is smaller than a city"], "tree": ["noun", "a tall plant with a woody trunk and branches"], "true": ["adjective", "right; not false"], "try": ["verb", "to make an effort to do something"], "turn": ["verb", "to move around or change direction"], "turned": ["verb", "moved around or changed direction"], "two": ["noun", "the number after one"], "under": ["preposition", "below; beneath"], "understand": ["verb", "to know what something means"], "United States": ["noun", "the country made of fifty states in North America"], "until": ["preposition", "up to the time of"], "up": ["adverb", "from lower to higher"], "upon": ["preposition", "on; on top of"], "us": ["pronoun", "the speaker and others, as in come with us"], "use": ["verb", "to do something with a tool or object"], "usually": ["adverb", "most of the time"], "very": ["adverb", "really; a lot"], "voice": ["noun", "the sound a person makes when speaking or singing"], "walked": ["verb", "moved on foot, one step at a time"], "want": ["verb", "to wish for or wish to have"], "warm": ["adjective", "a little hot; pleasantly hot"], "was": ["verb", "a form of be in the past, as in I was happy"], "watch": ["verb", "to look at something for a while"], "water": ["noun", "the clear liquid in rain, rivers, and the sea"], "way": ["noun", "a path or road; or how something is done"], "we": ["pronoun", "the speaker and others"], "weather": ["noun", "what it is like outside, like sunny, rainy, or windy"], "well": ["adverb", "in a good way"], "went": ["verb", "moved to another place; past of go"], "were": ["verb", "a form of be in the past, as in we were there"], "what": ["pronoun", "which thing; used to ask questions"], "when": ["adverb", "at what time"], "where": ["adverb", "at or to what place"], "whether": ["conjunction", "if, when there are two choices"], "which": ["pronoun", "what one of a group"], "while": ["conjunction", "during the time that"], "white": ["adjective", "the color of snow"], "who": ["pronoun", "what person"], "whole": ["adjective", "all of something, with nothing missing"], "why": ["adverb", "for what reason"], "wide": ["adjective", "far from one side to the other"], "wild": ["adjective", "living in nature, not tame"], "will": ["verb", "going to, in the future"], "wind": ["noun", "air moving outside"], "winter": ["noun", "the coldest season of the year"], "with": ["preposition", "together with; next to"], "within": ["preposition", "inside of"], "without": ["preposition", "not having"], "words": ["noun", "sounds or letters that have a meaning"], "work": ["noun", "a job, or effort to get something done"], "world": ["noun", "the Earth and everyone on it"], "would": ["verb", "used to talk about something that might happen"], "write": ["verb", "to put letters and words on paper or a screen"], "year": ["noun", "365 days; twelve months"], "yes": ["adverb", "a word that means you agree"], "yet": ["adverb", "up to now"], "you": ["pronoun", "the person being spoken to"], "young": ["adjective", "not old; in the early part of life"]};
+const SILENT="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//NwwAAAAAAAAAAAAEluZm8AAAAPAAAAFgAACbEAHR0dHSgoKCgoMzMzMz09PT09SEhISFNTU1NTXl5eXmlpaWlpc3Nzc35+fn5+iYmJiZSUlJSUnp6enp6pqamptLS0tLS/v7+/ysrKysrU1NTU39/f39/q6urq9fX19fX/////AAAAAExhdmM2MC4zMQAAAAAAAAAAAAAAACQELwAAAAAAAAmxyOFTSgAAAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NCxKMAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NAxKQAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80LEowAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80DEpAAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsSjAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NCxKMAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NAxKQAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80LEowAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80DEpAAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsSjAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NCxKMAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NAxKQAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80LEowAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80DEpAAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsSjAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NCxKMAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV";
+const bufCache={}; let playing=[], seqToken=0, unlocked=false;
+function unlockAudio(){
+  const c=actx();
+  if(unlocked) return; unlocked=true;
+  try{ if(navigator.audioSession) navigator.audioSession.type="playback"; }catch(e){}
+  try{ const a=new Audio(SILENT); a.loop=true; a.volume=0.01; a.setAttribute("playsinline",""); const pr=a.play(); if(pr&&pr.catch) pr.catch(()=>{}); }catch(e){}
+  try{ if(c){const b=c.createBuffer(1,1,22050),s=c.createBufferSource();s.buffer=b;s.connect(c.destination);s.start(0)} }catch(e){}
+}
+document.addEventListener("pointerdown",unlockAudio,true);
+document.addEventListener("touchend",unlockAudio,true);
+function getBuf(k){
+  if(bufCache[k]) return bufCache[k];
+  const c=actx(), b64=CLIPS[k]; if(!c||!b64) return Promise.resolve(null);
+  const bin=atob(b64), arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  bufCache[k]=new Promise(res=>{try{const r=c.decodeAudioData(arr.buffer,res,()=>res(null));if(r&&r.catch)r.catch(()=>res(null))}catch(e){res(null)}});
+  return bufCache[k];
+}
+function stopVoice(){playing.forEach(s=>{try{s.stop()}catch(e){}});playing=[];seqToken++;try{speechSynthesis.cancel()}catch(e){}}
+async function voice(items,fallbackText){
+  stopVoice(); const my=seqToken; const c=actx();
+  if(!c){ if(fallbackText) speakTTS(fallbackText); return 0; }
+  const bufs=await Promise.all(items.map(i=>typeof i==="number"?i:getBuf(i)));
+  if(my!==seqToken) return 0;
+  if(!bufs.some(b=>b&&typeof b!=="number")){ if(fallbackText) speakTTS(fallbackText); return 0; }
+  let t=c.currentTime+0.05; const t0=t;
+  for(const b of bufs){
+    if(typeof b==="number"){t+=b;continue}
+    if(!b) continue;
+    const s=c.createBufferSource(); s.buffer=b; s.connect(c.destination); s.start(t); playing.push(s); t+=b.duration+0.06;
+  }
+  return (t-t0)*1000;
+}
+function clipsReady(){ if(window.__CLIPS){CLIPS=window.__CLIPS;} const b=$("startBtn"); b.disabled=false; b.textContent="Start fishing!"; }
+function speakTTS(text){ try{ const u=new SpeechSynthesisUtterance(text); u.rate=.85; speechSynthesis.speak(u);}catch(e){} }
+function sayWord(slow){
+  if(slow) return voice(["s:"+word],word);
+  return voice(CLIPS["h:"+word]?["b:"+word,0.45,"h:"+word]:["b:"+word,0.7,"b:"+word],word);
+}
+const L=c=>"l:"+c.toLowerCase();
+
+/* ---------- sound effects ---------- */
+let ac=null;
+function actx(){if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ac&&ac.state==="suspended")ac.resume();return ac}
+function tone(f,d,type="sine",vol=.18,when=0,slideTo){
+  const c=actx(); if(!c||!sfxOn) return;
+  const o=c.createOscillator(),g=c.createGain(),t=c.currentTime+when;
+  o.type=type;o.frequency.setValueAtTime(f,t);if(slideTo)o.frequency.exponentialRampToValueAtTime(slideTo,t+d);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+d);
+  o.connect(g).connect(c.destination);o.start(t);o.stop(t+d+.02);
+}
+function splash(){
+  const c=actx(); if(!c||!sfxOn) return;
+  const n=c.sampleRate*.3,b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2);
+  const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();
+  f.type="bandpass";f.frequency.value=900;g.gain.value=.35;s.buffer=b;s.connect(f).connect(g).connect(c.destination);s.start();
+}
+const ding=()=>{tone(880,.18,"sine",.2);tone(1320,.3,"sine",.18,.1)};
+const boop=()=>tone(260,.35,"square",.07,0,140);
+const fanfare=()=>[523,659,784,1047].forEach((f,i)=>tone(f,.28,"triangle",.16,i*.12));
+
+/* ---------- scene decoration ---------- */
+function decorate(){
+  for(let i=0;i<9;i++){const w=document.createElement("div");w.className="weed";const h=40+Math.random()*70;
+    w.style.cssText=`left:${4+i*11+Math.random()*4}%;height:${h}px;animation-delay:${-Math.random()*3}s;background:${i%2?"#2d6a4f":"#40916c"}`;water.appendChild(w)}
+  for(let i=0;i<10;i++){const b=document.createElement("div");b.className="bubble";const s=6+Math.random()*10;
+    b.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;bottom:-20px;animation-duration:${7+Math.random()*8}s;animation-delay:${-Math.random()*12}s`;water.appendChild(b)}
+}
+
+/* ---------- fish drawing ---------- */
+function fishSVG(body,fin,shape,pattern,id){
+  let bodyEl,tail,dorsal,eyeX=96,eyeY=30;
+  if(shape==="long"){bodyEl=`<ellipse cx="64" cy="36" rx="52" ry="14" fill="${body}"/>`;tail=`<polygon points="16,36 2,22 2,50" fill="${fin}"/>`;dorsal=`<path d="M40 24 Q64 12 90 24 Z" fill="${fin}"/>`;eyeX=104;eyeY=32}
+  else if(shape==="round"){bodyEl=`<ellipse cx="66" cy="36" rx="36" ry="28" fill="${body}"/>`;tail=`<polygon points="32,36 8,16 8,56" fill="${fin}"/>`;dorsal=`<path d="M50 10 Q66 -2 82 10 Z" fill="${fin}"/>`;eyeX=88;eyeY=28}
+  else if(shape==="shark"){bodyEl=`<path d="M14 36 Q50 14 112 34 Q50 56 14 36Z" fill="${body}"/>`;tail=`<polygon points="18,36 2,14 6,36 2,54" fill="${fin}"/>`;dorsal=`<polygon points="52,22 62,6 72,22" fill="${fin}"/>`;eyeX=98;eyeY=31}
+  else {bodyEl=`<ellipse cx="66" cy="36" rx="44" ry="22" fill="${body}"/>`;tail=`<polygon points="26,36 4,16 4,56" fill="${fin}"/>`;dorsal=`<path d="M48 16 Q66 2 86 16 Z" fill="${fin}"/>`}
+  let pat="";
+  if(pattern==="stripes") pat=`<g clip-path="url(#c${id})" opacity=".85"><rect x="46" y="0" width="7" height="72" fill="${fin}"/><rect x="66" y="0" width="7" height="72" fill="${fin}"/><rect x="84" y="0" width="6" height="72" fill="${fin}"/></g>`;
+  if(pattern==="spots") pat=`<g clip-path="url(#c${id})" fill="${fin}" opacity=".8"><circle cx="50" cy="28" r="4"/><circle cx="62" cy="44" r="5"/><circle cx="76" cy="26" r="3.5"/><circle cx="44" cy="42" r="3"/></g>`;
+  const clip=`<defs><clipPath id="c${id}">${bodyEl.replace(/fill="[^"]*"/,"")}</clipPath></defs>`;
+  return `<svg viewBox="0 0 120 70">${clip}${tail}${dorsal}${bodyEl}${pat}
+   <path d="M60 40 Q70 52 76 40" fill="${fin}" opacity=".7"/>
+   <circle cx="${eyeX}" cy="${eyeY}" r="5.5" fill="#fff"/><circle cx="${eyeX+1.5}" cy="${eyeY}" r="2.8" fill="#111"/>
+   <path d="M${eyeX+10} ${eyeY+9} q4 2 0 4" stroke="#333" stroke-width="1.5" fill="none"/></svg>`;
+}
+function fishSize(){return innerWidth<=520?{w:96,h:74}:{w:118,h:88}}
+
+function spawnFish(letter,fromEdge){
+  const opts=FISH[letter]; const [name,body,fin,shape,pattern]=opts[Math.random()*opts.length|0];
+  const el=document.createElement("div"); const id=nextId++;
+  el.className="fish";
+  el.innerHTML=fishSVG(body,fin,shape||"normal",pattern,id)+`<div class="letter">${letter.toUpperCase()}</div><span class="name"><b>${name[0]}</b>${name.slice(1)}</span>`;
+  const W=water.clientWidth,H=water.clientHeight,{w,h}=fishSize();
+  const lane=pickLane();
+  const speed=(28+Math.random()*38)*(Math.random()<.5?-1:1);
+  const f={id,el,letter,name,x:0,lane,baseY:0,vx:speed,phase:Math.random()*6,hooked:false,gone:false};
+  f.baseY=laneY(lane);
+  if(fromEdge){const off=Math.random()*W*.35;f.x=speed>0?-w-off:W+off;}else f.x=Math.random()*(W-w);
+  el.addEventListener("pointerdown",e=>{e.preventDefault();
+    // if fish overlap under her finger, be kind and pick the one she needs
+    const n=needed(); let pick=f;
+    if(n&&f.letter!==n){const hit=liveFish().find(o=>{if(o.letter!==n)return false;const r=o.el.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom});if(hit)pick=hit}
+    tapFish(pick)});
+  water.appendChild(el); fishes.push(f); place(f,0);
+  return f;
+}
+let laneCount=6;
+function computeLanes(){const H=water.clientHeight,{h}=fishSize();laneCount=Math.max(4,Math.min(9,Math.floor((H-30)/(h*.72))))}
+function laneY(l){const H=water.clientHeight,{h}=fishSize();const usable=Math.max(10,H-h-34);return 14+usable*(l+.5)/laneCount}
+function pickLane(){
+  const used=fishes.filter(f=>!f.gone).map(f=>f.lane);
+  const free=[...Array(laneCount).keys()].filter(l=>!used.includes(l));
+  const arr=free.length?free:[...Array(laneCount).keys()];
+  return arr[Math.random()*arr.length|0];
+}
+function place(f,t){
+  const y=f.baseY+Math.sin(t/700+f.phase)*6;
+  f.y=y; f.el.style.transform=`translate(${f.x}px,${y}px)`;
+  f.el.classList.toggle("left",f.vx<0);
+}
+function fishCount(){return Math.max(5,Math.min(9,laneCount))}
+
+/* ---------- animation loop ---------- */
+let last=performance.now();
+function loop(t){
+  const dt=Math.min(.05,(t-last)/1000); last=t;
+  const W=water.clientWidth,{w}=fishSize();
+  for(const f of fishes){
+    if(f.hooked) continue;
+    f.x+=f.vx*dt;
+    if(f.gone){ if(f.x<-w-40||f.x>W+40){f.el.remove();f.dead=true} }
+    else { if(f.x<-10&&f.vx<0) f.vx=Math.abs(f.vx); if(f.x>W-w+10&&f.vx>0) f.vx=-Math.abs(f.vx); }
+    place(f,t);
+  }
+  fishes=fishes.filter(f=>!f.dead);
+  requestAnimationFrame(loop);
+}
+
+/* ---------- pond management ---------- */
+const lettersOf=w=>w.toLowerCase().replace(/[^a-z]/g,"");
+function needed(){return word[pos]?word[pos].toLowerCase():null}
+function liveFish(){return fishes.filter(f=>!f.gone&&!f.hooked)}
+function randomLetter(){const a="abcdefghijklmnopqrstuvwxyz";return a[Math.random()*26|0]}
+function chooseNewLetter(){
+  const need=needed(); const live=liveFish();
+  if(need && !live.some(f=>f.letter===need)) return need;
+  const rest=lettersOf(word.slice(pos));
+  if(rest && Math.random()<.55) return rest[Math.random()*rest.length|0];
+  return randomLetter();
+}
+function fillPond(fromEdge){
+  computeLanes();
+  while(liveFish().length<fishCount()) spawnFish(chooseNewLetter(),fromEdge);
+  ensureNeeded();
+}
+function ensureNeeded(){
+  const need=needed(); if(!need) return;
+  if(!liveFish().some(f=>f.letter===need)) spawnFish(need,true);
+}
+function clearPond(){fishes.forEach(f=>{f.gone=true;f.vx=(f.vx>0?1:-1)*260})}
+
+/* ---------- fishing line ---------- */
+function rodTip(){const b=$("boat"),s=scene.getBoundingClientRect(),r=b.getBoundingClientRect();return{x:r.left-s.left+r.width*(146/150),y:r.top-s.top+r.height*(2/60)}}
+function setLine(hx,hy,show=true){
+  const tip=rodTip(),l=$("fline"),h=$("hook");
+  l.setAttribute("x1",tip.x);l.setAttribute("y1",tip.y);l.setAttribute("x2",hx);l.setAttribute("y2",hy);
+  h.setAttribute("transform",`translate(${hx},${hy})`);
+  l.style.opacity=h.style.opacity=show?1:.0;
+}
+function positionBoat(){const W=scene.clientWidth;$("boat").style.left=(W/2-110)+"px";const t=rodTip();setLine(t.x,t.y+70)}
+function tween(ms,fn){return new Promise(res=>{const s=performance.now();(function step(n){const p=Math.min(1,(n-s)/ms);fn(p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2);p<1?requestAnimationFrame(step):res()})(s)})}
+function idleLine(){const t=rodTip();setLine(t.x,t.y+70)}
+
+/* ---------- gameplay ---------- */
+function renderSlots(){
+  const s=$("slots");s.innerHTML="";
+  [...word].forEach((ch,i)=>{
+    const d=document.createElement("div");d.className="slot";
+    if(!/[A-Za-z]/.test(ch)){d.classList.add("auto");if(ch===" ")d.classList.add("space");d.textContent=ch===" "?"":ch}
+    else if(i<pos){d.classList.add("filled");d.textContent=ch}
+    else if(i===pos)d.classList.add("next");
+    s.appendChild(d);
+  });
+}
+function skipAuto(){while(pos<word.length&&!/[A-Za-z]/.test(word[pos]))pos++}
+function setMsg(t){$("msg").textContent=t}
+function updateBar(){
+  $("roundPill").textContent=`Word ${Math.min(roundIdx+1,roundWords.length)}/${roundWords.length}`;
+  $("starPill").textContent=`⭐ ${totalStars}`;$("bucketPill").textContent=`🪣 ${bucket}`;
+}
+
+async function tapFish(f){
+  if(busy||f.hooked||f.gone||!word||pos>=word.length) return;
+  busy=true; f.hooked=true; actx();
+  const tip=rodTip(),{w}=fishSize();
+  const target={x:f.x+w*.5,y:f.y+72+30};   // water offset 72px
+  // drop hook
+  await tween(320,p=>setLine(tip.x+(target.x-tip.x)*p,tip.y+70+(target.y-tip.y-70)*p));
+  splash();
+  const need=needed();
+  if(f.letter===need){
+    const sx=f.x,sy=f.y;
+    await tween(480,p=>{f.x=sx+(tip.x-w*.5-sx)*p;f.y=sy+(tip.y-72-20-sy)*p;f.el.style.transform=`translate(${f.x}px,${f.y}px) rotate(${-25*p}deg) scale(${1-.4*p})`;setLine(tip.x+(target.x-tip.x)*(1-p),target.y+(tip.y+10-target.y)*p)});
+    f.el.style.transition="opacity .2s";f.el.style.opacity=0;setTimeout(()=>f.el.remove(),220);f.gone=true;f.dead=true;fishes=fishes.filter(x=>x!==f);
+    ding(); bucket++; store.set("sf_bucket",bucket);
+    pos++; skipAuto(); letterMiss=0; clearGlow();
+    renderSlots(); updateBar();
+    idleLine();
+    if(pos>=word.length){ busy=false; wordDone(); return; }
+    voice([L(f.letter)],f.letter);
+    setMsg(["Nice catch!","Got it!","Great job!","Reel 'em in!","Yes!"][Math.random()*5|0]+" What comes next?");
+    setTimeout(()=>{fillPond(true)},300);
+  } else {
+    f.el.classList.add("shake"); boop();
+    letterMiss++; wordMiss++;
+    voice(["p:oops",L(f.letter),0.15,"p:try"],"Oops, try again");
+    setMsg(`That's ${f.letter.toUpperCase()} for ${f.name}. Try again!`);
+    await new Promise(r=>setTimeout(r,420));
+    f.el.classList.remove("shake");
+    await tween(260,p=>setLine(target.x+(tip.x-target.x)*p,target.y+(tip.y+70-target.y)*p));
+    f.hooked=false; f.vx=(Math.random()<.5?-1:1)*(70+Math.random()*30);
+    setTimeout(()=>{f.vx=Math.sign(f.vx)*(28+Math.random()*38)},1500);
+    if(letterMiss>=2){glowNeeded();setMsg("Look for the glowing fish! ✨")}
+  }
+  busy=false;
+}
+function glowNeeded(){ensureNeeded();const n=needed();liveFish().forEach(f=>f.el.classList.toggle("glow",f.letter===n))}
+function clearGlow(){fishes.forEach(f=>f.el.classList.remove("glow"))}
+
+function startWord(){
+  word=roundWords[roundIdx]; pos=0; letterMiss=0; wordMiss=0; hints=0;
+  skipAuto(); renderSlots(); updateBar(); clearGlow(); $("defBox").classList.add("hide");
+  setMsg("Listen, then catch the letters in order!");
+  // refresh pond: let a few fish swim away, bring new ones
+  clearPond();
+  setTimeout(()=>{fillPond(true)},250);
+  setTimeout(()=>sayWord(),300);
+}
+function starsFor(){const m=wordMiss+hints*1.5;return m===0?3:m<=2?2:1}
+function wordDone(){
+  const st=starsFor(); totalStars+=st; roundResults.push([word,st]);
+  // tricky-word tracking
+  if(st<3){ if(!tricky.includes(word)) tricky.push(word); }
+  else tricky=tricky.filter(w=>w!==word);
+  store.set("sf_tricky",tricky);
+  updateBar(); fanfare(); confetti();
+  $("doneWord").textContent=word;
+  $("doneDef").innerHTML=defHTML(word);
+  $("doneStars").textContent="⭐".repeat(st)+"☆".repeat(3-st);
+  $("doneTitle").textContent=st===3?"Perfect catch!":st===2?"Nice fishing!":"You did it!";
+  $("nextBtn").textContent=roundIdx+1>=roundWords.length?"See my score 🏆":"Next word ➜";
+  setTimeout(()=>$("doneScreen").classList.remove("hide"),500);
+  const seq=["b:"+word,0.35];[...word].filter(c=>/[A-Za-z]/.test(c)).forEach(c=>seq.push(L(c),0.08));
+  seq.push(0.3,"b:"+word,0.5,"d:"+word,0.4,st===3?"p:perfect":"p:great");
+  setTimeout(()=>voice(seq,word),450);
+}
+function endRound(){
+  const max=roundWords.length*3;
+  $("endStars").textContent=`⭐ ${totalStars} / ${max}`;
+  const perfect=roundResults.filter(r=>r[1]===3).length;
+  $("endText").textContent=`${perfect} perfect catches out of ${roundWords.length} words!`;
+  $("endList").innerHTML=roundResults.map(([w,s])=>`<div><span>${w}</span><span>${"⭐".repeat(s)}</span></div>`).join("");
+  $("endScreen").classList.remove("hide"); fanfare();
+  voice(["p:fishing"],"Great fishing!");
+}
+function startRound(){
+  actx();
+  const set=$("setSel").value, n=+$("countSel").value;
+  pool=wordsFor(set); if(!pool.length) pool=wordsFor("all");
+  roundWords=shuffle([...pool]).slice(0,Math.min(n,pool.length));
+  roundIdx=0; totalStars=0; roundResults=[];
+  ["startScreen","endScreen","doneScreen"].forEach(id=>$(id).classList.add("hide"));
+  // unlock speech on iOS with a user gesture
+  unlockAudio();
+  voice(["p:go"],"Let's go fishing!");
+  setTimeout(startWord,1500);
+}
+
+/* ---------- confetti ---------- */
+function confetti(){
+  const cols=["#ff8c42","#ffd23f","#2a9d8f","#e63946","#7b8cde","#90e0ef"];
+  for(let i=0;i<60;i++){
+    const c=document.createElement("div");c.className="confetti";c.style.background=cols[i%cols.length];
+    const x=innerWidth/2,y=innerHeight*.35;c.style.left=x+"px";c.style.top=y+"px";document.body.appendChild(c);
+    const a=Math.random()*Math.PI*2,v=120+Math.random()*260,vx=Math.cos(a)*v,vy=Math.sin(a)*v-220,r=Math.random()*720;
+    const s=performance.now();
+    (function step(n){const t=(n-s)/1000;if(t>1.6){c.remove();return}
+      c.style.transform=`translate(${vx*t}px,${vy*t+420*t*t}px) rotate(${r*t}deg)`;c.style.opacity=1-t/1.6;requestAnimationFrame(step)})(s);
+  }
+}
+
+/* ---------- buttons ---------- */
+$("hearBtn").onclick=()=>{actx();word&&sayWord()};
+$("slowBtn").onclick=()=>{actx();word&&sayWord(true)};
+$("hintBtn").onclick=()=>{if(!word||pos>=word.length)return;hints++;glowNeeded();voice(["p:next",L(needed())],"next letter");setMsg(`Hint: find the ${needed().toUpperCase()} fish! ✨`)};
+$("peekBtn").onclick=()=>{
+  if(!word)return;hints++;const s=$("slots");const old=s.innerHTML;
+  s.innerHTML=`<div class="bigword" style="font-size:38px;margin:0">${word}</div>`;
+  setTimeout(()=>{renderSlots()},1500);
+};
+$("startBtn").onclick=startRound;
+function defHTML(w){const d=DEFS[w];return d?`<i>${d[0]}</i> ${d[1]}`:""}
+$("defBtn").onclick=()=>{actx();if(!word)return;const b=$("defBox");b.innerHTML="📖 "+defHTML(word);b.classList.remove("hide");voice(["p:means","d:"+word],DEFS[word]?DEFS[word][1]:"");};
+$("nextBtn").onclick=()=>{$("doneScreen").classList.add("hide");roundIdx++;if(roundIdx>=roundWords.length){word="";endRound()}else startWord()};
+$("againBtn").onclick=()=>{buildSetMenu();startRound()};
+$("menuBtn").onclick=()=>{buildSetMenu();$("endScreen").classList.add("hide");$("startScreen").classList.remove("hide")};
+$("homeBtn").onclick=()=>{stopVoice();buildSetMenu();["endScreen","doneScreen"].forEach(id=>$(id).classList.add("hide"));$("startScreen").classList.remove("hide")};
+$("soundBtn").onclick=()=>{sfxOn=!sfxOn;$("soundBtn").textContent=sfxOn?"🔔":"🔕"};
+addEventListener("resize",()=>{positionBoat();computeLanes();fishes.forEach(f=>{f.baseY=laneY(f.lane%laneCount)})});
+
+/* ---------- boot ---------- */
+decorate(); buildSetMenu();
+requestAnimationFrame(()=>{positionBoat();computeLanes();word="";
+  // ambient fish behind the start screen
+  for(let i=0;i<fishCount();i++) spawnFish(randomLetter(),false);
+  requestAnimationFrame(loop);
+});
+</script>
+<script>(function(){const sc=document.createElement("script");sc.src="clips.js";sc.async=true;sc.onload=clipsReady;sc.onerror=clipsReady;document.body.appendChild(sc);setTimeout(()=>{if($("startBtn").disabled)clipsReady()},20000)})();</script>
+</body>
+</html>
